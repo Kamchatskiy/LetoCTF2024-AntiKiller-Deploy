@@ -1,0 +1,78 @@
+name: letoctf-antikiller
+
+services:
+  front:
+    container_name: front
+    depends_on:
+      - back
+    restart: always
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    networks:
+      main:
+        ipv4_address: 10.0.0.2
+    ports:
+      - "80:3000"
+
+  api:
+    container_name: api
+    depends_on:
+      - back
+    restart: always
+    image: python:3
+    env_file:
+      - ./.env
+    volumes:
+      - ./api:/opt/api
+    working_dir: /opt/api
+    entrypoint: ./entrypoint.sh
+    networks:
+      main:
+        ipv4_address: 10.0.0.3
+    ports:
+      - 81:5000
+
+  back:
+    container_name: back
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+    image: python:3
+    env_file:
+      - ./.env
+    volumes:
+      - ./backend:/opt
+    working_dir: /opt
+    entrypoint: ./entrypoint.sh
+    networks:
+      main:
+        ipv4_address: 10.0.0.4
+    ports:
+      - 82:5000
+
+  db:
+    container_name: db
+    image: postgres:latest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 10s
+      retries: 3
+    env_file:
+      - ./.env
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      main:
+        ipv4_address: 10.0.0.5
+
+volumes:
+  db-data:
+
+networks:
+  main:
+    ipam:
+      config:
+        - subnet: 10.0.0.0/29
